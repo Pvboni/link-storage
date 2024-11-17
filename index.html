@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Link Storage</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 2rem auto;
+      background: #fff;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #555;
+    }
+    .form-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .form-group input, .form-group select {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .link-list {
+      list-style: none;
+      padding: 0;
+    }
+    .link-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f1f1f1;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+    }
+    .link-item a {
+      text-decoration: none;
+      color: #007bff;
+    }
+    .link-item a:hover {
+      text-decoration: underline;
+    }
+    .link-item button {
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+    }
+    .link-item button:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Link Storage</h1>
+    <div class="form-group">
+      <input type="text" id="title" placeholder="Website Title" />
+      <input type="text" id="url" placeholder="URL" />
+      <button onclick="addLink()">Add Link</button>
+    </div>
+    <ul id="linkList" class="link-list"></ul>
+  </div>
+
+  <script>
+    const linkList = document.getElementById("linkList");
+
+    // Load saved links from localStorage
+    const loadLinks = () => {
+      const links = JSON.parse(localStorage.getItem("links")) || [];
+      links.forEach((link) => addLinkToUI(link.title, link.url));
+    };
+
+    // Save a new link
+    const addLink = () => {
+      const title = document.getElementById("title").value;
+      const url = document.getElementById("url").value;
+
+      if (!title || !url) {
+        alert("Please fill in both fields.");
+        return;
+      }
+
+      const formattedUrl = url.startsWith("http") ? url : `https://${url}`;
+      addLinkToUI(title, formattedUrl);
+
+      // Save to localStorage
+      const links = JSON.parse(localStorage.getItem("links")) || [];
+      links.push({ title, url: formattedUrl });
+      localStorage.setItem("links", JSON.stringify(links));
+
+      // Clear input fields
+      document.getElementById("title").value = "";
+      document.getElementById("url").value = "";
+    };
+
+    // Add link to the UI
+    const addLinkToUI = (title, url) => {
+      const li = document.createElement("li");
+      li.className = "link-item";
+      li.innerHTML = `
+        <a href="${url}" target="_blank">${title}</a>
+        <button onclick="deleteLink(this)">Delete</button>
+      `;
+      linkList.appendChild(li);
+    };
+
+    // Delete a link
+    const deleteLink = (button) => {
+      const li = button.parentElement;
+      const title = li.querySelector("a").textContent;
+
+      // Remove from localStorage
+      let links = JSON.parse(localStorage.getItem("links")) || [];
+      links = links.filter((link) => link.title !== title);
+      localStorage.setItem("links", JSON.stringify(links));
+
+      // Remove from UI
+      li.remove();
+    };
+
+    // Initialize the app
+    loadLinks();
+  </script>
+</body>
+</html>
