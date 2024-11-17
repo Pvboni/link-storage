@@ -75,6 +75,17 @@
     .link-item button:hover {
       text-decoration: underline;
     }
+    .category-section {
+      margin-top: 2rem;
+    }
+    .category-title {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .category-list {
+      list-style: none;
+      padding: 0;
+    }
   </style>
 </head>
 <body>
@@ -83,19 +94,37 @@
     <div class="form-group">
       <input type="text" id="title" placeholder="Website Title" />
       <input type="text" id="url" placeholder="URL" />
+      <select id="category">
+        <option value="">Select Category</option>
+      </select>
       <button onclick="addLink()">Add Link</button>
     </div>
-    <ul id="linkList" class="link-list"></ul>
+
+    <div class="form-group">
+      <input type="text" id="newCategory" placeholder="New Category" />
+      <button onclick="addCategory()">Add Category</button>
+    </div>
+
+    <div class="category-section">
+      <h2 class="category-title">Categories</h2>
+      <ul id="categoryList" class="category-list"></ul>
+    </div>
+
+    <div class="link-list" id="linkList"></div>
   </div>
 
   <script>
     const API_URL = 'https://api.jsonbin.io/v3/b/6739e707ad19ca34f8cb7f6e';
     const API_KEY = '$2a$10$LJhY23Bqp5Z.13wuoS0H6exZU1d8ZWhE2gJS1Sp0vnjtFHg/O0D/K'; // Sua chave de autenticação
-
     const linkList = document.getElementById("linkList");
+    const categoryList = document.getElementById("categoryList");
+    const categorySelect = document.getElementById("category");
 
-    // Função para carregar links da API JSONBin
-    const loadLinks = async () => {
+    let categories = [];
+    let links = [];
+
+    // Função para carregar links e categorias da API JSONBin
+    const loadLinksAndCategories = async () => {
       try {
         const response = await fetch(API_URL, {
           headers: {
@@ -104,8 +133,14 @@
         });
         if (response.ok) {
           const data = await response.json();
-          const links = data.record.links || [];
-          links.forEach(link => addLinkToUI(link.title, link.url));
+          links = data.record.links || [];
+          categories = data.record.categories || [];
+          
+          // Atualiza o select de categorias
+          updateCategorySelect();
+          
+          // Exibe links agrupados por categoria
+          displayLinksByCategory(links);
         } else {
           console.error('Erro ao carregar dados da API');
         }
@@ -114,86 +149,139 @@
       }
     };
 
-    // Função para adicionar link à API JSONBin
+    // Função para exibir links por categoria
+    const displayLinksByCategory = (links) => {
+      linkList.innerHTML = '';
+      categories.forEach(category => {
+        const categoryLinks = links.filter(link => link.category === category);
+        
+        if (categoryLinks.length > 0) {
+          const categorySection = document.createElement('div');
+          categorySection.className = 'category-section';
+          const categoryTitle = document.createElement('h3');
+          categoryTitle.textContent = category;
+          categorySection.appendChild(categoryTitle);
+          
+          const categoryList = document.createElement('ul');
+          categoryLinks.forEach(link => {
+            const li = document.createElement('li');
+            li.className = 'link-item';
+            li.innerHTML = `
+              <a href="${link.url}" target="_blank">${link.title}</a>
+              <button onclick="deleteLink('${link.title}')">Delete</button>
+            `;
+            categoryList.appendChild(li);
+          });
+          categorySection.appendChild(categoryList);
+          linkList.appendChild(categorySection);
+        }
+      });
+    };
+
+    // Função para adicionar um link
     const addLink = async () => {
       const title = document.getElementById("title").value;
       const url = document.getElementById("url").value;
+      const category = document.getElementById("category").value;
 
-      if (!title || !url) {
-        alert("Por favor, preencha ambos os campos.");
+      if (!title || !url || !category) {
+        alert("Please fill in all fields.");
         return;
       }
 
       const formattedUrl = url.startsWith("http") ? url : `https://${url}`;
-      addLinkToUI(title, formattedUrl);
 
-      // Salva o link na API
-      const response = await fetch(API_URL, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': API_KEY,
-        },
-        body: JSON.stringify({
-          links: [...getLinksFromUI(), { title, url: formattedUrl }],
-        }),
-      });
+      const newLink = { title, url: formattedUrl, category };
 
-      if (!response.ok) {
-        console.error('Erro ao salvar na API');
-      }
+      // Salva o novo link na API
+      links.push(newLink);
+      await saveDataToAPI();
 
       // Limpa os campos de entrada
       document.getElementById("title").value = "";
       document.getElementById("url").value = "";
+
+      // Atualiza a UI com o novo link
+      displayLinksByCategory(links);
     };
 
-    // Função para pegar os links da UI
-    const getLinksFromUI = () => {
-      const links = [];
-      const linkItems = document.querySelectorAll('.link-item');
-      linkItems.forEach(item => {
-        const title = item.querySelector('a').textContent;
-        const url = item.querySelector('a').href;
-        links.push({ title, url });
+    // Função para adicionar nova categoria
+    const addCategory = async () => {
+      const newCategory = document.getElementById("newCategory").value;
+
+      if (!newCategory) {
+        alert("Please enter a category name.");
+        return;
+      }
+
+      if (categories.includes(newCategory)) {
+        alert("Category already exists.");
+        return;
+      }
+
+      categories.push(newCategory);
+
+      // Salva as novas categorias na API
+      await saveDataToAPI();
+
+      // Atualiza o select de categorias e exibe na lista de categorias
+      updateCategorySelect();
+      displayCategories();
+      document.getElementById("newCategory").value = '';
+    };
+
+    // Função para salvar dados na API
+    const saveDataToAPI = async () => {
+      try {
+        const response = await fetch(API_URL, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY,
+          },
+          body: JSON.stringify({
+            links: links,
+            categories: categories,
+          }),
+        });
+        if (!response.ok) {
+          console.error('Erro ao salvar na API');
+        }
+      } catch (error) {
+        console.error('Erro ao salvar dados:', error);
+      }
+    };
+
+    // Atualiza o select de categorias
+    const updateCategorySelect = () => {
+      categorySelect.innerHTML = '<option value="">Select Category</option>';
+      categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categorySelect.appendChild(option);
       });
-      return links;
     };
 
-    // Função para adicionar link na interface de usuário
-    const addLinkToUI = (title, url) => {
-      const li = document.createElement("li");
-      li.className = "link-item";
-      li.innerHTML = `
-        <a href="${url}" target="_blank">${title}</a>
-        <button onclick="deleteLink(this)">Delete</button>
-      `;
-      linkList.appendChild(li);
-    };
-
-    // Função para excluir um link da API
-    const deleteLink = async (button) => {
-      const li = button.parentElement;
-      const title = li.querySelector("a").textContent;
-      const url = li.querySelector("a").href;
-
-      // Remove o link da API
-      const links = getLinksFromUI().filter(link => link.title !== title || link.url !== url);
-      await fetch(API_URL, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': API_KEY,
-        },
-        body: JSON.stringify({ links }),
+    // Exibe as categorias na interface
+    const displayCategories = () => {
+      categoryList.innerHTML = '';
+      categories.forEach(category => {
+        const li = document.createElement('li');
+        li.textContent = category;
+        categoryList.appendChild(li);
       });
-
-      // Remove o link da UI
-      li.remove();
     };
 
-    // Inicializa o aplicativo carregando os links da API
-    loadLinks();
+    // Função para deletar um link
+    const deleteLink = async (title) => {
+      links = links.filter(link => link.title !== title);
+      await saveDataToAPI();
+      displayLinksByCategory(links);
+    };
+
+    // Inicializa o aplicativo
+    loadLinksAndCategories();
   </script>
 </body>
 </html>
