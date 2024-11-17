@@ -1,231 +1,199 @@
-import { useState, useEffect } from 'react';
-import { Trash2, Plus, Link as LinkIcon, FolderPlus } from 'lucide-react';
-
-export default function LinkStorage() {
-  const [links, setLinks] = useState(() => {
-    const savedLinks = localStorage.getItem('links');
-    return savedLinks ? JSON.parse(savedLinks) : [];
-  });
-
-  const [categories, setCategories] = useState(() => {
-    const savedCategories = localStorage.getItem('categories');
-    return savedCategories ? JSON.parse(savedCategories) : ['Work', 'Personal', 'Entertainment'];
-  });
-
-  const [newLink, setNewLink] = useState({ title: '', url: '', category: 'Personal' });
-  const [newCategory, setNewCategory] = useState('');
-  const [showCategoryInput, setShowCategoryInput] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  // URL da API JSONBin
-  const API_URL = 'https://api.jsonbin.io/v3/b/6739e707ad19ca34f8cb7f6e';
-  const API_KEY = '$2a$10$LJhY23Bqp5Z.13wuoS0H6exZU1d8ZWhE2gJS1Sp0vnjtFHg/O0D/K'; // Sua chave de autenticação
-
-  // Carregar os links da API
-  useEffect(() => {
-    fetchLinks();
-  }, []);
-
-  // Função para buscar os links da API
-  const fetchLinks = async () => {
-    try {
-      setIsSyncing(true);
-      const response = await fetch(API_URL, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': API_KEY,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setLinks(data.record.links || []);
-        setCategories(data.record.categories || []);
-      }
-    } catch (error) {
-      console.log('Erro ao buscar dados, usando dados locais.');
-    } finally {
-      setIsSyncing(false);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Link Storage</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+      color: #333;
     }
-  };
+    .container {
+      max-width: 600px;
+      margin: 2rem auto;
+      background: #fff;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #555;
+    }
+    .form-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .form-group input, .form-group select {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .link-list {
+      list-style: none;
+      padding: 0;
+    }
+    .link-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f1f1f1;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+    }
+    .link-item a {
+      text-decoration: none;
+      color: #007bff;
+    }
+    .link-item a:hover {
+      text-decoration: underline;
+    }
+    .link-item button {
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+    }
+    .link-item button:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Link Storage</h1>
+    <div class="form-group">
+      <input type="text" id="title" placeholder="Website Title" />
+      <input type="text" id="url" placeholder="URL" />
+      <button onclick="addLink()">Add Link</button>
+    </div>
+    <ul id="linkList" class="link-list"></ul>
+  </div>
 
-  // Função para salvar os links na API
-  const saveToServer = async (newLinks, newCategories) => {
-    try {
-      setIsSyncing(true);
-      await fetch(API_URL, {
+  <script>
+    const API_URL = 'https://api.jsonbin.io/v3/b/6739e707ad19ca34f8cb7f6e';
+    const API_KEY = '$2a$10$LJhY23Bqp5Z.13wuoS0H6exZU1d8ZWhE2gJS1Sp0vnjtFHg/O0D/K'; // Sua chave de autenticação
+
+    const linkList = document.getElementById("linkList");
+
+    // Função para carregar links da API JSONBin
+    const loadLinks = async () => {
+      try {
+        const response = await fetch(API_URL, {
+          headers: {
+            'X-Master-Key': API_KEY,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const links = data.record.links || [];
+          links.forEach(link => addLinkToUI(link.title, link.url));
+        } else {
+          console.error('Erro ao carregar dados da API');
+        }
+      } catch (error) {
+        console.error('Erro ao conectar com a API:', error);
+      }
+    };
+
+    // Função para adicionar link à API JSONBin
+    const addLink = async () => {
+      const title = document.getElementById("title").value;
+      const url = document.getElementById("url").value;
+
+      if (!title || !url) {
+        alert("Por favor, preencha ambos os campos.");
+        return;
+      }
+
+      const formattedUrl = url.startsWith("http") ? url : `https://${url}`;
+      addLinkToUI(title, formattedUrl);
+
+      // Salva o link na API
+      const response = await fetch(API_URL, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'X-Master-Key': API_KEY,
         },
         body: JSON.stringify({
-          links: newLinks,
-          categories: newCategories,
+          links: [...getLinksFromUI(), { title, url: formattedUrl }],
         }),
       });
-    } catch (error) {
-      console.log('Erro ao salvar dados, salvando localmente.');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
-  // Função para adicionar um novo link
-  const handleButtonClick = () => {
-    if (!newLink.title || !newLink.url) return;
+      if (!response.ok) {
+        console.error('Erro ao salvar na API');
+      }
 
-    let url = newLink.url;
-    if (!url.match(/^https?:\/\//i)) {
-      url = `https://${url}`;
-    }
+      // Limpa os campos de entrada
+      document.getElementById("title").value = "";
+      document.getElementById("url").value = "";
+    };
 
-    const newLinks = [...links, { ...newLink, url, id: Date.now() }];
-    setLinks(newLinks);
-    saveToServer(newLinks, categories);
-    setNewLink({ ...newLink, title: '', url: '' });
-  };
+    // Função para pegar os links da UI
+    const getLinksFromUI = () => {
+      const links = [];
+      const linkItems = document.querySelectorAll('.link-item');
+      linkItems.forEach(item => {
+        const title = item.querySelector('a').textContent;
+        const url = item.querySelector('a').href;
+        links.push({ title, url });
+      });
+      return links;
+    };
 
-  // Função para adicionar uma nova categoria
-  const addCategory = () => {
-    if (newCategory && !categories.includes(newCategory)) {
-      const newCategories = [...categories, newCategory];
-      setCategories(newCategories);
-      saveToServer(links, newCategories);
-      setNewCategory('');
-      setShowCategoryInput(false);
-    }
-  };
+    // Função para adicionar link na interface de usuário
+    const addLinkToUI = (title, url) => {
+      const li = document.createElement("li");
+      li.className = "link-item";
+      li.innerHTML = `
+        <a href="${url}" target="_blank">${title}</a>
+        <button onclick="deleteLink(this)">Delete</button>
+      `;
+      linkList.appendChild(li);
+    };
 
-  // Função para excluir um link
-  const deleteLink = (id) => {
-    const newLinks = links.filter(link => link.id !== id);
-    setLinks(newLinks);
-    saveToServer(newLinks, categories);
-  };
+    // Função para excluir um link da API
+    const deleteLink = async (button) => {
+      const li = button.parentElement;
+      const title = li.querySelector("a").textContent;
+      const url = li.querySelector("a").href;
 
-  // Função para abrir o link
-  const handleLinkClick = (url) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
+      // Remove o link da API
+      const links = getLinksFromUI().filter(link => link.title !== title || link.url !== url);
+      await fetch(API_URL, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': API_KEY,
+        },
+        body: JSON.stringify({ links }),
+      });
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Link Storage</h1>
-          {isSyncing && (
-            <span className="text-sm text-gray-500">Syncing...</span>
-          )}
-        </div>
+      // Remove o link da UI
+      li.remove();
+    };
 
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="flex gap-3 flex-wrap">
-            <input
-              type="text"
-              placeholder="Website Title"
-              value={newLink.title}
-              onChange={(e) => setNewLink({ ...newLink, title: e.target.value })}
-              className="flex-1 min-w-[140px] px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="text"
-              placeholder="URL"
-              value={newLink.url}
-              onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
-              className="flex-1 min-w-[140px] px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              value={newLink.category}
-              onChange={(e) => setNewLink({ ...newLink, category: e.target.value })}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            <button
-              onClick={handleButtonClick}
-              className="bg-blue-500 text-white px-4 py-1.5 rounded-md hover:bg-blue-600 transition-colors flex items-center gap-1 text-sm"
-              type="button"
-            >
-              <Plus size={16} />
-              Add
-            </button>
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-700">My Links</h2>
-          {showCategoryInput ? (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="Category name"
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={addCategory}
-                className="bg-green-500 text-white px-3 py-1.5 rounded-md hover:bg-green-600 transition-colors text-sm"
-              >
-                Add
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowCategoryInput(true)}
-              className="text-blue-500 hover:text-blue-600 flex items-center gap-1 text-sm"
-            >
-              <FolderPlus size={16} />
-              New Category
-            </button>
-          )}
-        </div>
-
-        {categories.map((category) => {
-          const categoryLinks = links.filter(link => link.category === category);
-          if (categoryLinks.length === 0) return null;
-
-          return (
-            <div key={category} className="mb-6">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">{category}</h3>
-              <div className="space-y-2">
-                {categoryLinks.map((link) => (
-                  <div key={link.id} className="bg-white rounded-md shadow-sm p-3 hover:shadow-md transition-shadow group">
-                    <div className="flex items-center justify-between gap-3">
-                      <div
-                        onClick={() => handleLinkClick(link.url)}
-                        className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
-                      >
-                        <LinkIcon size={16} className="text-gray-400 flex-shrink-0 group-hover:text-blue-500 transition-colors" />
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className="font-medium text-gray-900 truncate group-hover:text-blue-500 transition-colors">
-                            {link.title}
-                          </span>
-                          <span className="text-gray-400">•</span>
-                          <span className="text-gray-500 text-sm truncate">
-                            {link.url}
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => deleteLink(link.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                        type="button"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+    // Inicializa o aplicativo carregando os links da API
+    loadLinks();
+  </script>
+</body>
+</html>
